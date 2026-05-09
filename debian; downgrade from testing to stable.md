@@ -1,0 +1,209 @@
+<!-- markdownlint-disable MD007 -- Unordered list indentation -->
+<!-- markdownlint-disable MD010 -- No hard tabs -->
+<!-- markdownlint-disable MD012 -- No blank lines -->
+<!-- markdownlint-disable MD033 -- No inline html -->
+<!-- markdownlint-disable MD055 -- Table pipe style [Expected: leading_and_trailing; Actual: leading_only; Missing trailing pipe] -->
+<!-- markdownlint-disable MD041 -- First line in a file should be a top-level heading -->
+
+<!-- TOC ignore:true -->
+# Downgrade Debian from Testing to Stable
+
+<!-- TOC ignore:true -->
+## Table of contents
+<!-- TOC -->
+
+- [Why](#why)
+- [Instructions](#instructions)
+	- [Install the same version of the kernel on Testing host, that is the latest for Stable](#install-the-same-version-of-the-kernel-on-testing-host-that-is-the-latest-for-stable)
+		- [Install the older kernel](#install-the-older-kernel)
+		- [Uninstall Testing kernel metapackage](#uninstall-testing-kernel-metapackage)
+		- [Do the rest of the gruntwork](#do-the-rest-of-the-gruntwork)
+	- [You might as well change from initramfs-tools to dracut while you're at it](#you-might-as-well-change-from-initramfs-tools-to-dracut-while-youre-at-it)
+- [Troubleshooting](#troubleshooting)
+- [Document history](#document-history)
+- [Copyright and license](#copyright-and-license)
+
+<!-- /TOC -->
+
+## Why
+
+Debian Testing is a fine distro, and quasi-"rolling" at that. However, there are drawbacks:
+
+- It is last in line for security updates. Which in a post-AI environment, is no bueno.
+- For months before and after a major release, running on Testing is just _pain_. Especially if you didn't know the process was underway, and accidentally do a full update with `apt get dist-upgrade`.
+- Too often, proprietary drivers fall behind the kernel. Especially Nvidia and ZFS. Setting Grub or systemd-boot to always booting to the second kernel if installed, helps a great deal, but not 100%. Be prepared for breakage.
+
+Especially when grappling with the last point, you might be tempted to just "downgrade" to Stable.
+
+This is not officially supported, and most recommendations warn that things will break.
+
+While it's true that there can and almost certainly will be dependency problems during this process, if you do it in the right order (kernel first, Grub & EFI last), things are unlikely to permanently break. Even for highly complex configurations with tons of packages installed.
+
+- _But to mitigate potential problems, do try to run non-apt software as much as possible. `flatpak` and `AppImages` are excellent alternatives that have zero system-wide dependency issues, since they come bundled with the right versions of everything they need.
+
+Just make _absolutely sure_ you have an alternate way to boot, in a way that will let you `chroot` into your WIP environment, in case things go sideways.
+
+## Instructions
+
+### Install the same version of the kernel on Testing host, that is the latest for Stable
+
+#### Install the older kernel
+
+1. On an updated 'Stable' host: `dpkg --list | grep 'linux-image'`
+
+1. On the 'Testing' host to downgrade:
+
+	~~~bash
+	## Set $kVer to same major.minor version as latest on on Stable host
+	sudo apt update
+	kVer="6.12"  ## From 6.12.74+deb13+1
+	apt search "linux-image-${kVer}"
+	sudo apt install  linux-image-${kVer}
+	~~~
+
+1. Reboot: `( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit`
+
+1. Interrupt boot and select that kernel you just installed.
+
+#### Uninstall Testing kernel metapackage
+
+1. Uninstall the kernel metapackage: `sudo apt purge linux-image-amd64`
+
+1. Uninstall all higher-numbered kernels than same version running as Stable.
+
+1. Run: `sudo apt autoremove`
+
+1. Remove leftover higher-numbered kernel-related directories and symlinks under:
+
+	- `/usr/src`
+	- `/lib/modules`
+
+1. Make a note of what the current stable version is called. You'll be using it by name to be extra cautious (and in some cases for this process to even work), rather than the alias `stable`. As of 2026 it's `trixie`. Update accordingly.
+
+#### Do the rest of the gruntwork
+
+You have to do this all in one shot, without even letting the screensaver kick in. Don't let the power fail, or yourself die, until it's finished.
+
+~~~bash
+## Backup UEFI and grub config
+[[ -d /boot/backup.old ]] && sudo rm -rf               /boot/backup.old
+[[ -d /boot/backup     ]] && sudo mv     /boot/backup  /boot/backup.old
+sudo mkdir -p /boot/backup/boot
+sudo mkdir -p /boot/backup/efi/grub
+sudo cp -r /boot/efi          /boot/backup/boot/efi.bak
+sudo cp    /etc/default/grub  /boot/backup/etc/
+
+## Edit source files under `/etc/apt/sources.list` and `/etc/apt/sources.d/*.list`, change `testing` to latest stable name.
+sudo sed -i 's/testing/trixie/g; s/forky/trixie/g' /etc/apt/sources.list  &&  sudo nano /etc/apt/sources.list
+ls -lA /etc/apt/sources.list.d/
+	## Manually edit any active ones in there
+
+## Pin stable (important to use latest stable release by name, rather than 'stable'.
+echo -e "Package: *\nPin: release n=stable\nPin-Priority: 1001" | sudo tee /etc/apt/preferences.d/stable 1>/dev/null  &&  sudo nano /etc/apt/preferences.d/stable
+
+## Perform upgrade (show first)
+sudo apt update  &&  sudo apt -s full-upgrade | less
+sudo apt full-upgrade
+
+## Fix packages held back
+apt list '?installed ?not(?archive(stable))'
+
+## Downgrade packages manually
+sudo apt install package=version
+
+## Or purge problem packages
+sudo apt purge package
+
+## Clean up
+sudo apt autoremove --purge
+sudo apt clean
+
+## Reboot
+( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
+
+## Verify
+cat /etc/debian_version
+apt policy
+
+## Grub2 and EFI: Force uninstall. These are mostly redundant in case one or more fails
+sudo dpkg --remove --force-all grub-efi-amd64 grub-efi-amd64-bin grub-common shim-signed
+dpkg --purge --force-all $(dpkg -l | grep -i grub | awk '{print $2}')
+sudo apt purge 'grub*'
+sudo apttitude remove 'grub*'  ## This can usually resolve dependency issues.
+
+## Install downgraded grub.
+sudo apt autoremove --purge  ## Look carefully at what it plans to do
+sudo dpkg --configure -a
+sudo apt --fix-broken install
+sudo apt update
+sudo apt install --reinstall grub-efi-amd64 grub-common shim-signed
+sudo grub-install
+sudo update-grub
+
+## Make sure Grub is configured the way you want
+sudo nano /etc/default/grub
+
+## Verify
+grub-install --version
+apt policy grub-common
+
+## Reboot
+( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
+
+## Unpin stable (comment out lines in the file)
+sudo nano /etc/apt/preferences.d/stable
+
+## Install latast stable kernel metapackages:
+sudo apt update  &&  sudo apt install  linux-image-amd64  linux-headers-amd64
+
+## Reboot again
+( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
+
+## Run regular update process
+~~~
+
+### You might as well change from initramfs-tools to dracut while you're at it
+
+If you don't have a complicated setup - e.g. no Luks system partition encryption and/or root-on-ZFS that already have complicated init scripts working fine - then you can probably easily change to dracut, which is more modern and will be the successor to initramfs-tools in the future for Debian.
+
+It usually goes without a hitch.
+
+~~~bash
+## Install dracut and remove initramfs-tools at the same time
+sudo apt install dracut
+
+## For some reason dracut always installs mdadm, and it's not
+## even a real dependency. So if you're not using it, you
+## should remove it, as it could cause boot problems, esp
+## with root-on-ZFS even if you do that later.
+sudo apt remove mdadm
+
+## Uninstall initramfs stragglers
+sudo initramfs-tools initramfs-tools-core
+sudo apt autoremove
+
+## Create the 'initrd's (aka 'initramfs'es)
+## this will be automatic with updates after this.
+sudo dracut --regenerate-all --force
+
+## Reboot
+( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
+~~~
+
+## Troubleshooting
+
+~~~bash
+sudo dpkg --configure -a
+sudo aptitude install -f
+sudo apt clean
+sudo apt autoclean
+~~~
+
+## Document history
+
+- 20260508: Created.
+
+## Copyright and license
+
+Copyright © 2026 Jim Collier (ID: 1cv◂‡Vᛦ)<br>
+Licensed under GNU GPL v2 <https://www.gnu.org/licenses/gpl-2.0.html>. No warranty.
