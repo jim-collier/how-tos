@@ -16,7 +16,7 @@
 - [Instructions](#instructions)
 	- [Install the same version of the kernel on Testing host, that is the latest for Stable](#install-the-same-version-of-the-kernel-on-testing-host-that-is-the-latest-for-stable)
 		- [Install the older kernel](#install-the-older-kernel)
-		- [Uninstall Testing kernel metapackage](#uninstall-testing-kernel-metapackage)
+		- [Uninstall the Testing kernel metapackage](#uninstall-the-testing-kernel-metapackage)
 		- [Do the rest of the gruntwork](#do-the-rest-of-the-gruntwork)
 	- [You might as well change from initramfs-tools to dracut while you're at it](#you-might-as-well-change-from-initramfs-tools-to-dracut-while-youre-at-it)
 - [Troubleshooting](#troubleshooting)
@@ -29,9 +29,10 @@
 
 Debian Testing is a fine distro, and quasi-"rolling" at that. However, there are drawbacks:
 
-- It is last in line for security updates. Which in a post-AI environment, is no bueno.
-- For months before and after a major release, running on Testing is just _pain_. Especially if you didn't know the process was underway, and accidentally do a full update with `apt get dist-upgrade`.
-- Too often, proprietary drivers fall behind the kernel. Especially Nvidia and ZFS. Setting Grub or systemd-boot to always booting to the second kernel if installed, helps a great deal, but not 100%. Be prepared for breakage.
+- It is last in line for security updates. Which at a time when AIs are finding zero-day exploits at record pace, is no longer very tenable.
+	- One mitigation for this is to use Stable (or even Unstable) for security updates. But that introduces a greater risk of installing unresolvable dependency chains - and generally makes the inherent challenges of running Testing in the first place, worse.
+- For a few months before and after a major release, running on Testing is just _pain_. More so if you didn't know the process was underway (which is not easy to know), and accidentally do a full update with, say, `apt get dist-upgrade`.
+- Too often, proprietary drivers fall behind the kernel. Especially Nvidia and ZFS. Setting Grub or systemd-boot to always booting to the _second_ newest kernel if installed, helps a great deal, but not 100%. Be prepared for breakage.
 
 Especially when grappling with the last point, you might be tempted to just "downgrade" to Stable.
 
@@ -39,9 +40,11 @@ This is not officially supported, and most recommendations warn that things will
 
 While it's true that there can and almost certainly will be dependency problems during this process, if you do it in the right order (kernel first, Grub & EFI last), things are unlikely to permanently break. Even for highly complex configurations with tons of packages installed.
 
-- _But to mitigate potential problems, do try to run non-apt software as much as possible. `flatpak` and `AppImages` are excellent alternatives that have zero system-wide dependency issues, since they come bundled with the right versions of everything they need.
+- _But to mitigate potential problems, do try to run non-apt software as much as possible. `flatpak` and `AppImages` are excellent alternatives that have zero system-wide dependency issues, since they come bundled with the right versions of everything they need. `flatpak` is arguably the easiest and most `apt`-like experience. But `AppImages` don't have sandboxing challenges common to `flatpak` apps that require deep integration, and with the right setup can even auto-install menu launch icons, and auto-update._
 
-Just make _absolutely sure_ you have an alternate way to boot, in a way that will let you `chroot` into your WIP environment, in case things go sideways.
+	_For the love of goodness, just don't fall for the `snap` trap._
+
+__Before starting this usually painless process, just make _absolutely sure_ you have an alternate way to boot, in a way that will let you `chroot` into your WIP environment, in case things go sideways__.
 
 ## Instructions
 
@@ -65,7 +68,7 @@ Just make _absolutely sure_ you have an alternate way to boot, in a way that wil
 
 1. Interrupt boot and select that kernel you just installed.
 
-#### Uninstall Testing kernel metapackage
+#### Uninstall the Testing kernel metapackage
 
 1. Uninstall the kernel metapackage: `sudo apt purge linux-image-amd64`
 
@@ -78,7 +81,7 @@ Just make _absolutely sure_ you have an alternate way to boot, in a way that wil
 	- `/usr/src`
 	- `/lib/modules`
 
-1. Make a note of what the current stable version is called. You'll be using it by name to be extra cautious (and in some cases for this process to even work), rather than the alias `stable`. As of 2026 it's `trixie`. Update accordingly.
+1. Make a note of what the current stable version is called. (Since 2011 they've all been character names from the "Toy Story" movies.) You'll be using it by name to be extra cautious (and in some cases for this process to even work), rather than the alias `stable`. As of 2026 it's `trixie`. Update accordingly.
 
 #### Do the rest of the gruntwork
 
@@ -172,18 +175,18 @@ It usually goes without a hitch.
 ## Install dracut and remove initramfs-tools at the same time
 sudo apt install dracut
 
-## For some reason dracut always installs mdadm, and it's not
-## even a real dependency. So if you're not using it, you
-## should remove it, as it could cause boot problems, esp
-## with root-on-ZFS even if you do that later.
+## For some reason dracut always installs mdadm, and it's not even
+## a real dependency. So if you're not using it, you should remove it,
+## as it may cause boot problems - and definitely will for
+## root-on-ZFS setups, even if you do that later.
 sudo apt remove mdadm
 
 ## Uninstall initramfs stragglers
 sudo initramfs-tools initramfs-tools-core
 sudo apt autoremove
 
-## Create the 'initrd's (aka 'initramfs'es)
-## this will be automatic with updates after this.
+## Create the 'initrd's (aka 'initramfs'es).
+## This will be automatic with updates after this.
 sudo dracut --regenerate-all --force
 
 ## Reboot
@@ -205,5 +208,5 @@ sudo apt autoclean
 
 ## Copyright and license
 
-Copyright © 2026 Jim Collier (ID: 1cv◂‡Vᛦ)<br>
-Licensed under GNU GPL v2 <https://www.gnu.org/licenses/gpl-2.0.html>. No warranty.
+> Copyright © 2026 Jim Collier (ID: 1cv◂‡Vᛦ)<br>
+> Licensed under GNU GPL v2 <https://www.gnu.org/licenses/gpl-2.0.html>. No warranty.
