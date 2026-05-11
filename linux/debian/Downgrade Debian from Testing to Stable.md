@@ -269,13 +269,26 @@ sudo dracut --regenerate-all --force
 ( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
 ~~~
 
+Continue on to the next section as a last step.
+
 ## Troubleshooting
 
+Although these are general troubleshooting steps, also do them  the last and final step to the process, to make sure you have no problems, and to clear out old cached cruft from Testing.
+
 ~~~bash
+## Try to finish configuring packages left in an unconfigured state.
+## If the system is good, there will be nothing to do.
 sudo dpkg --configure -a
+
+## Resolve system-wide dependency problems in a more intelligent way than regular apt.
+## If the system is good, there will be nothing to do.
 sudo aptitude install -f
-sudo apt clean
+
+## Remove unnecessary leftover dependency orphans, now just taking up disk space.
 sudo apt autoclean
+
+## Get rid of old cached `.deb` packages downloaded during `apt get` operations.
+sudo apt clean
 ~~~
 
 ## Document history
