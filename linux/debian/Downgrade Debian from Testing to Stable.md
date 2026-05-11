@@ -18,7 +18,9 @@
 	- [Install the same version of the kernel on Testing host, that is the latest for Stable](#install-the-same-version-of-the-kernel-on-testing-host-that-is-the-latest-for-stable)
 		- [Install the older kernel](#install-the-older-kernel)
 		- [Uninstall the Testing kernel metapackage](#uninstall-the-testing-kernel-metapackage)
-		- [Do the rest of the gruntwork](#do-the-rest-of-the-gruntwork)
+	- [Downgrade repository reference and applications](#downgrade-repository-reference-and-applications)
+	- [Downgrade Grub2 and UEFI](#downgrade-grub2-and-uefi)
+	- [Final cleanup](#final-cleanup)
 	- [You might as well change from initramfs-tools to dracut while you're at it](#you-might-as-well-change-from-initramfs-tools-to-dracut-while-youre-at-it)
 - [Troubleshooting](#troubleshooting)
 - [Document history](#document-history)
@@ -82,37 +84,56 @@ __Before starting this usually painless process, just make _absolutely sure_ you
 1. On the 'Testing' host to downgrade:
 
 	~~~bash
-	## Set $kVer to same major.minor version as latest on on Stable host
+	## Set $kernelVersion_Stable_MinMinor to same major.minor version as latest on on Stable host
+	kernelVersion_Stable_MinMinor="6.12"  ## From 6.12.74+deb13+1
+
 	sudo apt update
-	kVer="6.12"  ## From 6.12.74+deb13+1
-	apt search "linux-image-${kVer}"
-	sudo apt install  linux-image-${kVer}
+	apt search "linux-image-${kernelVersion_Stable_MinMinor}"
+	sudo apt install  linux-image-${kernelVersion_Stable_MinMinor}
 	~~~
 
-1. Reboot: `( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit`
+1. Reboot:
+
+	~~~bash
+	( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
+	~~~
 
 1. Interrupt boot and select that kernel you just installed.
 
 #### Uninstall the Testing kernel metapackage
 
-1. Uninstall the kernel metapackage: `sudo apt purge linux-image-amd64`
+1. Uninstall the kernel metapackage:
+
+	~~~bash
+	sudo apt purge linux-image-amd64
+	~~~
 
 1. Uninstall all higher-numbered kernels than same version running as Stable.
 
-1. Run: `sudo apt autoremove`
+1. Run:
+
+	~~~bash
+	sudo apt autoremove
+	~~~
 
 1. Remove leftover higher-numbered kernel-related directories and symlinks under:
 
 	- `/usr/src`
 	- `/lib/modules`
 
-1. Make a note of what the current stable version is called. (Since 2011 they've all been character names from the "Toy Story" movies.) You'll be using it by name to be extra cautious (and in some cases for this process to even work), rather than the alias `stable`. As of 2026 it's `trixie`. Update accordingly.
+1. Make a note of what the current stable version of Debian is called. (Since 2011 they've all been character names from the "Toy Story" movies.) You'll be using it by name to be extra cautious (and in some cases for this process to even work), rather than the alias `stable`. As of 2026 it's `trixie`. Update accordingly.
 
-#### Do the rest of the gruntwork
+### Downgrade repository reference and applications
 
 You have to do this all in one shot, without even letting the screensaver kick in. Don't let the power fail, or yourself die, until it's finished.
 
 ~~~bash
+set -o pipefail
+
+## Define the environment variables used below
+export debStableName="trixie"
+export debTestingName="forky"
+
 ## Backup UEFI and grub config
 [[ -d /boot/backup.old ]] && sudo rm -rf               /boot/backup.old
 [[ -d /boot/backup     ]] && sudo mv     /boot/backup  /boot/backup.old
@@ -121,13 +142,18 @@ sudo mkdir -p /boot/backup/efi/grub
 sudo cp -r /boot/efi          /boot/backup/boot/efi.bak
 sudo cp    /etc/default/grub  /boot/backup/etc/
 
-## Edit source files under `/etc/apt/sources.list` and `/etc/apt/sources.d/*.list`, change `testing` to latest stable name.
-sudo sed -i 's/testing/trixie/g; s/forky/trixie/g' /etc/apt/sources.list  &&  sudo nano /etc/apt/sources.list
-ls -lA /etc/apt/sources.list.d/
-	## Manually edit any active ones in there
+## Edit source files under `/etc/apt/sources.list` and `/etc/apt/sources.d/*.list`,
+## change `testing` to latest stable name.
+sudo sed -i "s/testing/${debStableName}/g" /etc/apt/sources.list
+sudo sed -i "s/${$debTestingName}/${debStableName}/g" /etc/apt/sources.list
+sudo nano /etc/apt/sources.list
 
-## Pin stable (important to use latest stable release by name, rather than 'stable'.
-echo -e "Package: *\nPin: release n=stable\nPin-Priority: 1001" | sudo tee /etc/apt/preferences.d/stable 1>/dev/null  &&  sudo nano /etc/apt/preferences.d/stable
+## Manually edit any active individual repo files ones under here
+ls -lA /etc/apt/sources.list.d/
+
+## Pin stable. (It's important to use the latest stable release by name, rather than 'stable'.)
+echo -e "Package: *\nPin: release n=${debStableName}\nPin-Priority: 1001" | sudo tee /etc/apt/preferences.d/stable 1>/dev/null &&
+	sudo nano /etc/apt/preferences.d/stable
 
 ## Perform upgrade (show first)
 sudo apt update  &&  sudo apt -s full-upgrade | less
@@ -136,10 +162,10 @@ sudo apt full-upgrade
 ## Fix packages held back
 apt list '?installed ?not(?archive(stable))'
 
-## Downgrade packages manually
+## Downgrade any problem packages manually, if necessary
 sudo apt install package=version
 
-## Or purge problem packages
+## Or purge problem packages (can reinstall later if desired)
 sudo apt purge package
 
 ## Clean up
@@ -149,20 +175,35 @@ sudo apt clean
 ## Reboot
 ( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
 
-## Verify
+## Log back in and verify
 cat /etc/debian_version
 apt policy
+~~~
 
-## Grub2 and EFI: Force uninstall. These are mostly redundant in case one or more fails
+### Downgrade Grub2 and UEFI
+
+The same warning about doing this all in one shot without so much as letting the screen lock, applies.
+
+~~~bash
+set -o pipefail
+
+## Grub2 and EFI: Force uninstall.
+## These are mostly redundant commands in case one or more fails.
 sudo dpkg --remove --force-all grub-efi-amd64 grub-efi-amd64-bin grub-common shim-signed
 dpkg --purge --force-all $(dpkg -l | grep -i grub | awk '{print $2}')
 sudo apt purge 'grub*'
-sudo aptitude remove 'grub*'  ## This can usually resolve dependency issues.
 
-## Install downgraded grub.
+## If still having dependency problems:
+sudo aptitude remove 'grub*'
+
+## Remove outdated orphaned dependencies
 sudo apt autoremove --purge  ## Look carefully at what it plans to do
+
+## Make sure everything is cool
 sudo dpkg --configure -a
 sudo apt --fix-broken install
+
+## Forcr-install downgraded Grub and EFI.
 sudo apt update
 sudo apt install --reinstall grub-efi-amd64 grub-common shim-signed
 sudo grub-install
@@ -177,7 +218,11 @@ apt policy grub-common
 
 ## Reboot
 ( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
+~~~
 
+### Final cleanup
+
+~~~bash
 ## Unpin stable (comment out lines in the file)
 sudo nano /etc/apt/preferences.d/stable
 
@@ -187,12 +232,18 @@ sudo apt update  &&  sudo apt install  linux-image-amd64  linux-headers-amd64
 ## Reboot again
 ( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
 
-## Run regular update process
+## Run regular update process. Mostly to make sure it works.
+## There should be nothing to actually update at this point.
+sudo apt update
+sudo apt upgrade
+sudo apt dist-upgrade
 ~~~
 
 ### You might as well change from initramfs-tools to dracut while you're at it
 
-If you don't have a complicated setup - e.g. no Luks system partition encryption and/or root-on-ZFS that already have complicated init scripts working fine - then you can probably easily change to dracut, which is more modern and will be the successor to initramfs-tools in the future for Debian.
+If you don't have a complicated boot setup - e.g. no Luks system partition encryption and/or root-on-ZFS that already have complicated init scripts  - then you can probably easily change to `dracut`, which is more modern and will be the successor to `initramfs-tools` in the future for Debian.
+
+If you don't know whether you have a complicated boot setup - and you're the one who installed it - then you almost certainly don't, and can make this change.
 
 It usually goes without a hitch.
 
@@ -207,7 +258,7 @@ sudo apt install dracut
 sudo apt remove mdadm
 
 ## Uninstall initramfs stragglers
-sudo initramfs-tools initramfs-tools-core
+sudo initramfs-tools initramfs-tools-core  ## Ignore complaints, uninstall what can be.
 sudo apt autoremove
 
 ## Create the 'initrd's (aka 'initramfs'es).
@@ -230,6 +281,7 @@ sudo apt autoclean
 ## Document history
 
 - 20260508: Created.
+- 20260511: Updated.
 
 ## Copyright and license
 
