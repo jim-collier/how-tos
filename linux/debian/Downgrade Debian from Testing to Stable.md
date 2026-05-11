@@ -146,9 +146,9 @@ export debTestingName="forky"
 [[ -d /boot/backup.old ]] && sudo rm -rf               /boot/backup.old
 [[ -d /boot/backup     ]] && sudo mv     /boot/backup  /boot/backup.old
 sudo mkdir -p /boot/backup/boot
-sudo mkdir -p /boot/backup/efi/grub
-sudo cp -r /boot/efi          /boot/backup/boot/efi.bak
-sudo cp    /etc/default/grub  /boot/backup/etc/
+sudo mkdir -p /boot/backup/etc/default
+sudo cp -r /boot/efi          /boot/backup/boot/efi
+sudo cp    /etc/default/grub  /boot/backup/etc/default/
 
 ## Edit source files under `/etc/apt/sources.list` and `/etc/apt/sources.d/*.list`,
 ## change `testing` to latest stable name.
@@ -223,6 +223,14 @@ sudo nano /etc/default/grub
 ## Verify
 grub-install --version
 apt policy grub-common
+
+## List changes from old grub config, to new.
+## New may be bone-stock default now.
+diff --color=always -sy  /boot/backup/etc/default/grub  /etc/default/grub | less -FRX
+
+	## If necessary, copy old over new to preserve you previous settings.
+	sudo cp  /boot/backup/etc/default/grub  /etc/default/grub
+	sudo nano /etc/default/grub
 
 ## Reboot
 ( (nohup bash -c 'sleep 5; sudo reboot' &>/dev/null) & disown ); sleep 0.5; exit
