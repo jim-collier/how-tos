@@ -13,6 +13,7 @@
 <!-- TOC -->
 
 - [Why](#why)
+- [A warning before starting](#a-warning-before-starting)
 - [Instructions](#instructions)
 	- [Install the same version of the kernel on Testing host, that is the latest for Stable](#install-the-same-version-of-the-kernel-on-testing-host-that-is-the-latest-for-stable)
 		- [Install the older kernel](#install-the-older-kernel)
@@ -38,13 +39,37 @@ Especially when grappling with the last point, you might be tempted to just "dow
 
 This is not officially supported, and most recommendations warn that things will break.
 
-While it's true that there can and almost certainly will be dependency problems during this process, if you do it in the right order (kernel first, Grub & EFI last), things are unlikely to permanently break. Even for highly complex configurations with tons of packages installed.
+## A warning before starting
 
-- _But to mitigate potential problems, do try to run non-apt software as much as possible. `flatpak` and `AppImages` are excellent alternatives that have zero system-wide dependency issues, since they come bundled with the right versions of everything they need. `flatpak` is arguably the easiest and most `apt`-like experience. But `AppImages` don't have sandboxing challenges common to `flatpak` apps that require deep integration, and with the right setup can even auto-install menu launch icons, and auto-update._
+While it's true that there can and almost certainly will be dependency problems during this process that temporarily break your system, if you do it in the right order (kernel first, Grub & EFI last), things are unlikely to permanently break - even for highly complex configurations with tons of packages installed.
 
-	_For the love of goodness, just don't fall for the `snap` trap._
+But to mitigate potential problems, do try to run non-apt software as much as possible. The more software you have installed from the Debian repository, the exponentially harder it becomes to maintain a single unified system running a system-wide coherent set of dependencies.
 
-__Before starting this usually painless process, just make _absolutely sure_ you have an alternate way to boot, in a way that will let you `chroot` into your WIP environment, in case things go sideways__.
+Before downgrading, is the _best_ time to see if you can permanently minimize your dependency on the official Debian repository, for application images.
+
+`flatpak` and `AppImages` are the top-two advisable choices.
+
+- _The `nix` package manager can be installed on most or all other distros, and isolates dependencies similar to `flatpak` and `AppImages`. But the real magic of Nix is when it runs on a fully integrated NixOS, and manages the entire system. In standalone mode, those advantages are largely lost, and arguably does not justify the inherent downsides._
+
+Benefits of running `flatpak` and/or `AppImage`applications:
+
+- Each application is bundled with it's own dependencies, that have no effect on other applications or the system in general.
+
+- The stable versions available are generally more up-to-date that even Debian Testing's versions - sometimes significantly so.
+
+- `flatpak` has a very `apt`-like single-command update feature.
+
+Drawbacks
+
+- `flatpak` applications can have issues with the sandboxing feature. Applications that need tight system integration - e.g. web browsers or development IDEs with live debuggers - can have challenges that need manual tweaking.
+
+	- _The issue with the web browser can be overcome by simply having one browser installed through `apt`, set as the default. Then just use your favorite `flatpak` browser as normal by launching it directly or via keyboard shortcut._
+
+- `AppImages` don't have a native auto-update feature, nor do they install a menu icon themselves. But it is possible to achieve both of those features with a bit of extra work up-front.
+
+_For the love of goodness, just don't fall for the `snap` trap. "Why" is beyond the scope of this, but many an Ubuntu user can tell you why._
+
+__Before starting this usually painless process, just make _absolutely sure_ you have an alternate way to boot, in a way that will let you `chroot` into your WIP environment, in case things do go sideways__.
 
 ## Instructions
 
@@ -132,7 +157,7 @@ apt policy
 sudo dpkg --remove --force-all grub-efi-amd64 grub-efi-amd64-bin grub-common shim-signed
 dpkg --purge --force-all $(dpkg -l | grep -i grub | awk '{print $2}')
 sudo apt purge 'grub*'
-sudo apttitude remove 'grub*'  ## This can usually resolve dependency issues.
+sudo aptitude remove 'grub*'  ## This can usually resolve dependency issues.
 
 ## Install downgraded grub.
 sudo apt autoremove --purge  ## Look carefully at what it plans to do
@@ -156,7 +181,7 @@ apt policy grub-common
 ## Unpin stable (comment out lines in the file)
 sudo nano /etc/apt/preferences.d/stable
 
-## Install latast stable kernel metapackages:
+## Install latest stable kernel metapackages:
 sudo apt update  &&  sudo apt install  linux-image-amd64  linux-headers-amd64
 
 ## Reboot again
