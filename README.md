@@ -37,5 +37,5 @@ A collection of "how to do things" that I've often had to figure out the hard wa
 
 ## Copyright and license
 
-> Copyright © 2026 Jim Collier (ID: 1cv◂‡Vᛦ)<br>
-> Licensed under GNU GPL v2 <https://www.gnu.org/licenses/gpl-2.0.html>. No warranty.
+Copyright © 2026 Jim Collier (ID: 1cv◂‡Vᛦ)<br>
+Licensed under GNU GPL v2 <https://www.gnu.org/licenses/gpl-2.0.html>. No warranty.
