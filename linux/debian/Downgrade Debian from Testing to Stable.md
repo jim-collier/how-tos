@@ -35,9 +35,17 @@ Debian Testing is a fine distro, and quasi-"rolling" at that. However, there are
 - It is last in line for security updates. Which at a time when AIs are finding zero-day exploits at record pace, is no longer very tenable.
 	- One mitigation for this is to use Stable (or even Unstable) for security updates. But that introduces a greater risk of installing unresolvable dependency chains - and generally makes the inherent challenges of running Testing in the first place, worse.
 - For a few months before and after a major release, running on Testing is just _pain_. More so if you didn't know the process was underway (which is not easy to know), and accidentally do a full update with, say, `apt get dist-upgrade`.
-- Too often, proprietary drivers fall behind the kernel. Especially Nvidia and ZFS. Setting Grub or systemd-boot to always booting to the _second_ newest kernel if installed, helps a great deal, but not 100%. Be prepared for breakage.
+- Too often, proprietary drivers (e.g. Nvidia) and/or out-of-tree modules (e.g. ZFS) fall behind Testing's latest kernel. Setting Grub or systemd-boot to always booting to the _second_ newest kernel if installed, helps a great deal - but not 100%. Be prepared for occasional breakage.
 
 Especially when grappling with the last point, you might be tempted to just "downgrade" to Stable.
+
+And after all, the main advantage of Testing, really boils down to a consistently newer Linux kernel. The quasi-"rolling" aspect to Testing is not as great as it seems, because:
+
+- When new stable releases come out, it _can_ be trivially easy to upgrade to them without worry. _Especially_ if you make an effort along the way to avoid future dependency problems. The easiest way to accomplish this:
+
+	- Avoid at any cost, installing applications that require adding custom repository entries anywhere under `/etc/apt`. Instead, install a `snap` or `AppImage` version. Which may not be as immediately convenient, but will save potentially significant headaches for all future upgrades, and in general just minimize the risk of problems for any and all mere uses of `apt upgrade` in the future.
+	- Minimize the use of Debian repository applications in general. Think of the Debian repo as a "system"-only repository. Only fall back to it for an applacition, if it's just not available as a `flatpak`, `AppImage`, or self-contained binary.
+
 
 This is not officially supported, and most recommendations warn that things will break.
 
