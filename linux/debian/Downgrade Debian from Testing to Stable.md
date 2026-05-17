@@ -5,6 +5,12 @@
 <!-- markdownlint-disable MD055 -- Table pipe style [Expected: leading_and_trailing; Actual: leading_only; Missing trailing pipe] -->
 <!-- markdownlint-disable MD041 -- First line in a file should be a top-level heading -->
 
+<div align="center">
+
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
+</div>
+
 <!-- TOC ignore:true -->
 # Downgrade Debian from Testing to Stable
 
@@ -309,10 +315,11 @@ sudo apt clean
 
 ## Document history
 
+- 20260517: Changed license from GPL to CC BY-SA 4.0.
 - 20260508: Created.
 - 20260511: Updated.
 
 ## Copyright and license
 
-Copyright © 2026 Jim Collier (ID: 1cv◂‡Vᛦ)<br>
-Licensed under GNU GPL v2 <https://www.gnu.org/licenses/gpl-2.0.html>. No warranty.
+> Copyright © 2026 Jim Collier (ID: 1cv◂‡Vᛦ)<br>
+> Licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.en). No warranty.
