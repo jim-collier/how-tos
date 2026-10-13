@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## v1.0.0 - 2026-05-17
 
 - Changed license from GPL to CC BY-SA 4.0.
+
 - First version.
 
 <!--
